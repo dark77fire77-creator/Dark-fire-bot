@@ -392,6 +392,7 @@ client.on('group_admin_changed', async (notification) => {
 // 📩 10. نظام استقبال الرسائل والأوامر
 // =========================================
 client.on('message_create', async msg => {
+    console.log(`📩 تم استلام رسالة: ${msg.body}`);
     try {
         if (!msg || msg.isStatus || msg.from === 'status@broadcast') return;
 
