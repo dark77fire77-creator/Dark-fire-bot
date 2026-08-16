@@ -1,15 +1,15 @@
 {
   "name": "dark-fire-bot",
   "version": "2.0.0",
-  "description": "WhatsApp Guard Bot - Premium",
+  "description": "WhatsApp Bot",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "whatsapp-web.js": "^1.23.0",
     "qrcode-terminal": "^0.12.0",
-    "puppeteer": "^21.0.0"
+    "whatsapp-web.js": "github:pedroslopez/whatsapp-web.js#main",
+    "puppeteer": "^22.0.0"
   }
 }
