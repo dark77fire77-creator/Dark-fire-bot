@@ -10,16 +10,22 @@ const { execSync } = require('child_process');
 // =========================================
 const app = express();
 const PORT = process.env.PORT || 3000;
-app.get('/', (req, res) => { res.send('البوت يعمل بنجاح! الأقفال مكسورة بقوة لينكس 🚀'); });
+app.get('/', (req, res) => { res.send('البوت يعمل بنجاح! 🚀'); });
 app.listen(PORT, () => { console.log(`🌍 خادم الويب يعمل على المنفذ ${PORT}`); });
 
 // =========================================
-// 🗄️ 2. نظام الذاكرة الدائمة والكاسحة ومكسر الأقفال
+// 🗄️ 2. نظام الذاكرة الدائمة والكاسحة
 // =========================================
-const dataPath = fs.existsSync('/data') ? '/data' : __dirname;
-const dbFile = path.join(dataPath, 'warnings.json');
-const settingsFile = path.join(dataPath, 'settings.json');
-const merchantsFile = path.join(dataPath, 'merchants.json');
+const baseDataPath = fs.existsSync('/data') ? '/data' : __dirname;
+
+// ملفات البيانات (نحتفظ بها في المسار الرئيسي لكي لا تضيع)
+const dbFile = path.join(baseDataPath, 'warnings.json');
+const settingsFile = path.join(baseDataPath, 'settings.json');
+const merchantsFile = path.join(baseDataPath, 'merchants.json');
+
+// 🔥 الحل العبقري لمشكلة "الجلسة الميتة": مسار جلسة جديد لفرض QR Code جديد
+const sessionPath = path.join(baseDataPath, 'wa_session_v2');
+if (!fs.existsSync(sessionPath)) { fs.mkdirSync(sessionPath, { recursive: true }); }
 
 function safeReadJSON(filePath, defaultValue = {}) {
     try {
@@ -47,31 +53,17 @@ function saveMerchants() {
 
 function unlockChromiumProfile() {
     try {
-        execSync(`find ${dataPath} -name "SingletonLock" -o -name "SingletonCookie" -o -name "SingletonSocket" | xargs rm -rf 2>/dev/null || true`);
-        console.log('🔓 تم تدمير الأقفال الوهمية بقوة أوامر لينكس.');
-    } catch (err) {
-        const pathsToCheck = [
-            path.join(dataPath, 'session'),
-            path.join(dataPath, 'session', 'Default'),
-            path.join(dataPath, '.wwebjs_auth', 'session'),
-            path.join(dataPath, '.wwebjs_auth', 'session', 'Default')
-        ];
-        const lockFiles = ['SingletonLock', 'SingletonCookie', 'SingletonSocket'];
-        pathsToCheck.forEach(dir => {
-            lockFiles.forEach(file => {
-                try { fs.rmSync(path.join(dir, file), { force: true, recursive: true }); } catch (e) {}
-            });
-        });
-    }
+        execSync(`find ${sessionPath} -name "SingletonLock" -o -name "SingletonCookie" -o -name "SingletonSocket" | xargs rm -rf 2>/dev/null || true`);
+    } catch (err) {}
 }
 
 function clearChromiumCache() {
     try {
         const paths = [
-            path.join(dataPath, 'session', 'Default'),
-            path.join(dataPath, '.wwebjs_auth', 'session', 'Default')
+            path.join(sessionPath, 'session', 'Default'),
+            path.join(sessionPath, '.wwebjs_auth', 'session', 'Default')
         ];
-        const junkFolders = ['Cache', 'Code Cache', 'Media Cache', 'GPUCache', 'VideoDecodeStats', path.join('Service Worker', 'CacheStorage'), path.join('Service Worker', 'ScriptCache')];
+        const junkFolders = ['Cache', 'Code Cache', 'Media Cache', 'GPUCache', 'VideoDecodeStats', path.join('Service Worker', 'CacheStorage')];
         paths.forEach(basePath => {
             if (fs.existsSync(basePath)) {
                 junkFolders.forEach(folder => {
@@ -80,7 +72,6 @@ function clearChromiumCache() {
                 });
             }
         });
-        console.log('🧹 تم تنظيف كاش المتصفح.');
     } catch (err) {}
 }
 
@@ -117,7 +108,7 @@ setInterval(() => {
 }, 2 * 60 * 60 * 1000); 
 
 // =========================================
-// 👑 4. أرقام المالكين (ضع رقمك هنا بعد كشفه)
+// 👑 4. أرقام المالكين (ضع رقمك هنا لاحقاً)
 // =========================================
 const MY_ADMIN_NUMBERS =[
     "201092996413",
@@ -139,7 +130,7 @@ let isBotReady = false;
 let connectionAttemptTime = Date.now(); 
 
 const client = new Client({
-    authStrategy: new LocalAuth({ dataPath: dataPath }),
+    authStrategy: new LocalAuth({ dataPath: sessionPath }), // نستخدم المسار الجديد هنا
     puppeteer: {
         headless: true,
         args:[
@@ -166,12 +157,12 @@ const client = new Client({
 
 client.on('qr', qr => {
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qr)}`;
-    console.log('🔗 افتح هذا الرابط لمسح الـ QR:\n' + qrUrl);
+    console.log('🔗 عاجل: افتح هذا الرابط لمسح الـ QR الجديد لبدء البوت:\n' + qrUrl);
     try { qrcode.generate(qr, { small: true }); } catch (e) {}
 });
 
 client.on('ready', () => {
-    console.log('✅ البوت جاهز ومستقر ويعمل الآن.');
+    console.log('✅ البوت جاهز ومستقر ويعمل الآن (تم حل مشكلة الجلسة الميتة).');
     isBotReady = true;
     restoreMerchantTimers();
 });
@@ -189,9 +180,6 @@ client.on('disconnected', async () => {
     }, 5000);
 });
 
-// =========================================
-// ⏱️ 6. كلب الحراسة ومراقبة الرام
-// =========================================
 setInterval(() => {
     if (!isBotReady && (Date.now() - connectionAttemptTime > 6 * 60 * 1000)) process.exit(1); 
 }, 60 * 1000); 
@@ -319,23 +307,31 @@ client.on('message_create', async msg => {
         if (msg.fromMe && client.info && client.info.wid) { rawSenderId = client.info.wid._serialized; }
         if (!rawSenderId) return; 
         
-        // استخراج الرقم بشكل نقي جداً (أرقام فقط)
         let senderId = rawSenderId.replace(/:\d+/, "");
         let senderNumber = senderId.split('@')[0].replace(/\D/g, "");
 
+        try {
+            const contact = await msg.getContact();
+            if (contact && contact.number) { senderNumber = contact.number.replace(/\D/g, ""); }
+        } catch(e) {}
+
         const text = msg.body ? msg.body.trim() : "";
+        
+        // تسجيل وصول الرسالة (لكي نراها في السيرفر)
+        if (text) {
+            console.log(`📩 رسالة جديدة من [${senderNumber}]: ${text}`);
+        }
+
         if (!text && !msg.hasMedia) return;
 
-        // 🔥 الأمر السحري الجديد: اكشف رقمك الحقيقي (يعمل للجميع في الخاص والجروب)
+        // 🔥 الأمر السحري للكشف عن الرقم
         if (text === '!رقمي' || text === '!معلوماتي') {
             await msg.reply(`🤖 أهلاً بك!\nالرقم الخاص بك كما يقرأه البوت هو:\n*${senderNumber}*\n\n(انسخ هذا الرقم وضعه في قائمة MY_ADMIN_NUMBERS في الكود لتصبح المالك)`);
             return;
         }
 
-        // التحقق من المالك بشكل أكثر مرونة
         const isBotOwner = msg.fromMe || MY_ADMIN_NUMBERS.some(admin => senderNumber.includes(admin) || admin.includes(senderNumber));
 
-        // منع استجابة البوت في الخاص إلا للمالك
         if (!chat.isGroup && !isBotOwner) return;
 
         if (isBotOwner) {
@@ -515,7 +511,9 @@ client.on('message_create', async msg => {
                 }
             }
         }
-    } catch (err) {}
+    } catch (err) {
+        console.log(`🚨 خطأ داخلي في الرسائل: ${err.message}`);
+    }
 });
 
 client.initialize();
