@@ -1,19 +1,15 @@
 {
-  "name": "whatsapp-guard-bot",
-  "version": "1.0.0",
-  "description": "بوت واتساب لحماية الجروبات من الروابط والألفاظ الممنوعة",
+  "name": "dark-fire-bot",
+  "version": "2.0.0",
+  "description": "WhatsApp Guard Bot - Premium",
   "main": "index.js",
-  "type": "commonjs",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.7.9",
-    "@hapi/boom": "^10.0.1",
+    "express": "^4.18.2",
+    "whatsapp-web.js": "^1.23.0",
     "qrcode-terminal": "^0.12.0",
-    "pino": "^9.0.0"
-  },
-  "engines": {
-    "node": ">=20.0.0"
+    "puppeteer": "^21.0.0"
   }
 }
