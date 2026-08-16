@@ -47,38 +47,45 @@ function saveMerchants() {
 
 function unlockChromiumProfile() {
     try {
+        // 1. استخدام قوة لينكس لفرم الأقفال أينما كانت داخل مجلد البيانات (دقة 100%)
+        // سيتم البحث عن الملفات وتدميرها حتى لو تغير اسم المجلد
+        execSync(`find ${dataPath} -name "SingletonLock" -o -name "SingletonCookie" -o -name "SingletonSocket" | xargs rm -rf 2>/dev/null || true`);
+        console.log('🔓 تم تدمير الأقفال الوهمية بقوة أوامر لينكس.');
+    } catch (err) {
+        // 2. خطة بديلة باستخدام Node.js مع المسارات الصحيحة (session مباشرة وليس .wwebjs_auth فقط)
         const pathsToCheck = [
-            path.join(dataPath, '.wwebjs_auth', 'session'),
+            path.join(dataPath, 'session'),                      // المسار الفعلي عند استخدام dataPath مخصص
+            path.join(dataPath, 'session', 'Default'),
+            path.join(dataPath, '.wwebjs_auth', 'session'),      // المسار الاحتياطي
             path.join(dataPath, '.wwebjs_auth', 'session', 'Default')
         ];
         const lockFiles = ['SingletonLock', 'SingletonCookie', 'SingletonSocket'];
         
         pathsToCheck.forEach(dir => {
             lockFiles.forEach(file => {
-                const filePath = path.join(dir, file);
-                try {
-                    // نستخدم rmSync مع force بدلاً من existsSync
-                    // لأن existsSync تفشل في قراءة الـ Symlinks المكسورة في لينكس
-                    fs.rmSync(filePath, { force: true, recursive: true });
-                } catch (e) {
-                    // تجاهل الأخطاء إذا لم يكن الملف موجوداً أصلاً
-                }
+                try { fs.rmSync(path.join(dir, file), { force: true, recursive: true }); } catch (e) {}
             });
         });
-        console.log('🔓 تم تدمير الأقفال الوهمية والروابط المكسورة بنجاح.');
-    } catch (err) {
-        console.log('⚠️ خطأ أثناء محاولة كسر الأقفال:', err.message);
+        console.log('🔓 تم تدمير الأقفال الوهمية برمجياً.');
     }
 }
 
 function clearChromiumCache() {
     try {
-        const basePath = path.join(dataPath, '.wwebjs_auth', 'session', 'Default');
-        if (!fs.existsSync(basePath)) return;
-        const junkFolders =['Cache', 'Code Cache', 'Media Cache', 'GPUCache', 'VideoDecodeStats', path.join('Service Worker', 'CacheStorage'), path.join('Service Worker', 'ScriptCache')];
-        junkFolders.forEach(folder => {
-            const targetPath = path.join(basePath, folder);
-            if (fs.existsSync(targetPath)) fs.rmSync(targetPath, { recursive: true, force: true });
+        // إصلاح المسارات هنا أيضاً لتشمل مسار 'session' الصحيح
+        const paths = [
+            path.join(dataPath, 'session', 'Default'),
+            path.join(dataPath, '.wwebjs_auth', 'session', 'Default')
+        ];
+        const junkFolders = ['Cache', 'Code Cache', 'Media Cache', 'GPUCache', 'VideoDecodeStats', path.join('Service Worker', 'CacheStorage'), path.join('Service Worker', 'ScriptCache')];
+        
+        paths.forEach(basePath => {
+            if (fs.existsSync(basePath)) {
+                junkFolders.forEach(folder => {
+                    const targetPath = path.join(basePath, folder);
+                    if (fs.existsSync(targetPath)) fs.rmSync(targetPath, { recursive: true, force: true });
+                });
+            }
         });
         console.log('🧹 تم تنظيف كاش المتصفح لضمان المزامنة السريعة.');
     } catch (err) {}
@@ -386,7 +393,6 @@ client.on('group_admin_changed', async (notification) => {
 // =========================================
 client.on('message_create', async msg => {
     try {
-        // 🛡️ حماية من رسائل الحالة (الستوري) والرسائل المعطوبة
         if (!msg || msg.isStatus || msg.from === 'status@broadcast') return;
 
         let chat;
@@ -395,7 +401,7 @@ client.on('message_create', async msg => {
         
         let rawSenderId = msg.fromMe ? (msg.from || msg.to) : (msg.author || msg.from);
         if (msg.fromMe && client.info && client.info.wid) { rawSenderId = client.info.wid._serialized; }
-        if (!rawSenderId) return; // حماية من رسائل النظام
+        if (!rawSenderId) return; 
         
         let senderId = rawSenderId.replace(/:\d+/, "");
         let senderNumber = senderId.split('@')[0].replace(/\D/g, "");
@@ -531,7 +537,6 @@ client.on('message_create', async msg => {
             groupSettings[chatId] = { links: false, swear: false, merchant: false, stickers: false, antiMention: false, linkAction: 'kick', expireAt: null, expiredNotified: false };
         }
 
-        // أوامر المالك الخاصة بالجروب
         if (isBotOwner) {
             if (text === '!صلاحياتي') { await chat.sendMessage(`${botPrefix}🔍 *كشف الصلاحيات:*\n👤 *رقمك:* ${senderNumber}\n👑 *المالك؟* ${isBotOwner ? 'نعم ✅' : 'لا ❌'}\n🛡️ *مشرف؟* ${isSenderAdmin ? 'نعم ✅' : 'لا ❌'}`); return; }
             if (text === '!تفعيل الروابط') { groupSettings[chatId].links = true; saveSettings(); await chat.sendMessage(`${botPrefix}✅ تم تشغيل نظام مكافحة الروابط.`); return; }
