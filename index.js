@@ -416,6 +416,7 @@ client.on('message_create', async msg => {
         if (!text && !msg.hasMedia) return;
 
         const isBotOwner = msg.fromMe || MY_ADMIN_NUMBERS.includes(senderNumber) || MY_ADMIN_NUMBERS.some(admin => senderNumber.endsWith(admin));
+        console.log(`🔍 تحليل => الرقم الذي أرسل: [${senderNumber}] | هل هو المالك؟: [${isBotOwner}] | هل هو جروب؟: [${chat.isGroup}]`);
 
         if (!chat.isGroup && !isBotOwner) return;
 
