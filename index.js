@@ -17,13 +17,10 @@ app.listen(PORT, () => { console.log(`🌍 خادم الويب يعمل على �
 // 🗄️ 2. نظام الذاكرة الدائمة والكاسحة
 // =========================================
 const baseDataPath = fs.existsSync('/data') ? '/data' : __dirname;
-
-// ملفات البيانات (نحتفظ بها في المسار الرئيسي لكي لا تضيع)
 const dbFile = path.join(baseDataPath, 'warnings.json');
 const settingsFile = path.join(baseDataPath, 'settings.json');
 const merchantsFile = path.join(baseDataPath, 'merchants.json');
 
-// 🔥 الحل العبقري لمشكلة "الجلسة الميتة": مسار جلسة جديد لفرض QR Code جديد
 const sessionPath = path.join(baseDataPath, 'wa_session_v2');
 if (!fs.existsSync(sessionPath)) { fs.mkdirSync(sessionPath, { recursive: true }); }
 
@@ -52,17 +49,12 @@ function saveMerchants() {
 }
 
 function unlockChromiumProfile() {
-    try {
-        execSync(`find ${sessionPath} -name "SingletonLock" -o -name "SingletonCookie" -o -name "SingletonSocket" | xargs rm -rf 2>/dev/null || true`);
-    } catch (err) {}
+    try { execSync(`find ${sessionPath} -name "SingletonLock" -o -name "SingletonCookie" -o -name "SingletonSocket" | xargs rm -rf 2>/dev/null || true`); } catch (err) {}
 }
 
 function clearChromiumCache() {
     try {
-        const paths = [
-            path.join(sessionPath, 'session', 'Default'),
-            path.join(sessionPath, '.wwebjs_auth', 'session', 'Default')
-        ];
+        const paths = [ path.join(sessionPath, 'session', 'Default'), path.join(sessionPath, '.wwebjs_auth', 'session', 'Default') ];
         const junkFolders = ['Cache', 'Code Cache', 'Media Cache', 'GPUCache', 'VideoDecodeStats', path.join('Service Worker', 'CacheStorage')];
         paths.forEach(basePath => {
             if (fs.existsSync(basePath)) {
@@ -97,14 +89,10 @@ function isSpamming(senderId) {
 
 setInterval(() => {
     let changed = false;
-    for (const key in userWarnings) {
-        if (userWarnings[key] === 0) { delete userWarnings[key]; changed = true; }
-    }
+    for (const key in userWarnings) { if (userWarnings[key] === 0) { delete userWarnings[key]; changed = true; } }
     if (changed) saveWarnings();
     for (const key in spamTracker) { delete spamTracker[key]; }
-    unlockChromiumProfile();
-    clearChromiumCache(); 
-    if (global.gc) { global.gc(); } 
+    unlockChromiumProfile(); clearChromiumCache(); if (global.gc) { global.gc(); } 
 }, 2 * 60 * 60 * 1000); 
 
 // =========================================
@@ -117,9 +105,7 @@ const MY_ADMIN_NUMBERS =[
 ];
 
 function formatDate(timestamp) {
-    return new Date(timestamp).toLocaleDateString('ar-EG', {
-        year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
-    });
+    return new Date(timestamp).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 // =========================================
@@ -130,7 +116,12 @@ let isBotReady = false;
 let connectionAttemptTime = Date.now(); 
 
 const client = new Client({
-    authStrategy: new LocalAuth({ dataPath: sessionPath }), // نستخدم المسار الجديد هنا
+    authStrategy: new LocalAuth({ dataPath: sessionPath }),
+    // 🔥 الضربة القاضية لمشكلة عمى البوت: تثبيت إصدار واتساب ويب
+    webVersionCache: {
+        type: 'remote',
+        remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
+    },
     puppeteer: {
         headless: true,
         args:[
@@ -157,40 +148,31 @@ const client = new Client({
 
 client.on('qr', qr => {
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qr)}`;
-    console.log('🔗 عاجل: افتح هذا الرابط لمسح الـ QR الجديد لبدء البوت:\n' + qrUrl);
+    console.log('🔗 امسح هذا الـ QR الجديد:\n' + qrUrl);
     try { qrcode.generate(qr, { small: true }); } catch (e) {}
 });
 
 client.on('ready', () => {
-    console.log('✅ البوت جاهز ومستقر ويعمل الآن (تم حل مشكلة الجلسة الميتة).');
+    console.log('✅ البوت جاهز ومستقر. (تم تشغيل مثبت الإصدار)');
     isBotReady = true;
     restoreMerchantTimers();
 });
 
 client.on('disconnected', async () => {
     if (isReconnecting) return;
-    isReconnecting = true;
-    isBotReady = false;
-    connectionAttemptTime = Date.now(); 
+    isReconnecting = true; isBotReady = false; connectionAttemptTime = Date.now(); 
     try { await client.destroy(); } catch (err) {}
-    setTimeout(async () => {
-        unlockChromiumProfile(); 
-        try { await client.initialize(); } catch (err) {}
-        isReconnecting = false;
-    }, 5000);
+    setTimeout(async () => { unlockChromiumProfile(); try { await client.initialize(); } catch (err) {} isReconnecting = false; }, 5000);
 });
 
-setInterval(() => {
-    if (!isBotReady && (Date.now() - connectionAttemptTime > 6 * 60 * 1000)) process.exit(1); 
-}, 60 * 1000); 
+setInterval(() => { if (!isBotReady && (Date.now() - connectionAttemptTime > 6 * 60 * 1000)) process.exit(1); }, 60 * 1000); 
 
 setInterval(async () => {
     const memoryUsageMB = Math.round(process.memoryUsage().rss / 1024 / 1024);
     if (memoryUsageMB > 250 && !isReconnecting) {
         isReconnecting = true; isBotReady = false; connectionAttemptTime = Date.now();
         try {
-            await client.destroy(); 
-            unlockChromiumProfile(); clearChromiumCache(); if (global.gc) { global.gc(); }
+            await client.destroy(); unlockChromiumProfile(); clearChromiumCache(); if (global.gc) { global.gc(); }
             setTimeout(async () => { try { await client.initialize(); } catch (err) {} isReconnecting = false; }, 5000);
         } catch (e) { isReconnecting = false; }
     }
@@ -296,11 +278,19 @@ client.on('group_join', async (notification) => {
 // 📩 10. نظام استقبال الرسائل والأوامر
 // =========================================
 client.on('message_create', async msg => {
+    // 🔥 هذا السطر سيفضح البوت! لو كان يرى الرسائل سيطبع هذا السطر فوراً
+    console.log(`👀 [استشعار مبدئي] البوت التقط رسالة: ${msg.body}`);
+
     try {
         if (!msg || msg.isStatus || msg.from === 'status@broadcast') return;
 
         let chat;
-        try { chat = await msg.getChat(); } catch (e) { return; } 
+        try { 
+            chat = await msg.getChat(); 
+        } catch (e) { 
+            console.log(`⚠️ البوت يقرأ الرسالة ولكنه فشل في جلب بيانات المحادثة (سيتم التجاهل لحين استقرار المزامنة)`); 
+            return; 
+        } 
         if (!chat || !chat.id) return;
         
         let rawSenderId = msg.fromMe ? (msg.from || msg.to) : (msg.author || msg.from);
@@ -316,12 +306,9 @@ client.on('message_create', async msg => {
         } catch(e) {}
 
         const text = msg.body ? msg.body.trim() : "";
-        
-        // تسجيل وصول الرسالة (لكي نراها في السيرفر)
         if (text) {
-            console.log(`📩 رسالة جديدة من [${senderNumber}]: ${text}`);
+            console.log(`📩 رسالة تمت معالجتها من [${senderNumber}]: ${text}`);
         }
-
         if (!text && !msg.hasMedia) return;
 
         // 🔥 الأمر السحري للكشف عن الرقم
@@ -511,9 +498,7 @@ client.on('message_create', async msg => {
                 }
             }
         }
-    } catch (err) {
-        console.log(`🚨 خطأ داخلي في الرسائل: ${err.message}`);
-    }
+    } catch (err) {}
 });
 
 client.initialize();
