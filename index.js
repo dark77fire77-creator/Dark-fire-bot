@@ -47,11 +47,23 @@ function saveMerchants() {
 
 function unlockChromiumProfile() {
     try {
-        const sessionPath = path.join(dataPath, '.wwebjs_auth', 'session');
-        if (fs.existsSync(sessionPath)) {
-            execSync(`rm -rf "${path.join(sessionPath, 'Singleton*')}"`);
-            console.log('🔓 تم تدمير الأقفال الوهمية بقوة نظام لينكس بنجاح.');
-        }
+        const pathsToCheck = [
+            path.join(dataPath, '.wwebjs_auth', 'session'),
+            path.join(dataPath, '.wwebjs_auth', 'session', 'Default')
+        ];
+        const lockFiles = ['SingletonLock', 'SingletonCookie', 'SingletonSocket'];
+        
+        pathsToCheck.forEach(dir => {
+            if (fs.existsSync(dir)) {
+                lockFiles.forEach(file => {
+                    const filePath = path.join(dir, file);
+                    if (fs.existsSync(filePath)) {
+                        fs.unlinkSync(filePath); // تدمير القفل برمجياً
+                    }
+                });
+            }
+        });
+        console.log('🔓 تم تدمير الأقفال الوهمية بنجاح.');
     } catch (err) {}
 }
 
