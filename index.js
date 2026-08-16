@@ -54,17 +54,21 @@ function unlockChromiumProfile() {
         const lockFiles = ['SingletonLock', 'SingletonCookie', 'SingletonSocket'];
         
         pathsToCheck.forEach(dir => {
-            if (fs.existsSync(dir)) {
-                lockFiles.forEach(file => {
-                    const filePath = path.join(dir, file);
-                    if (fs.existsSync(filePath)) {
-                        fs.unlinkSync(filePath); // تدمير القفل برمجياً
-                    }
-                });
-            }
+            lockFiles.forEach(file => {
+                const filePath = path.join(dir, file);
+                try {
+                    // نستخدم rmSync مع force بدلاً من existsSync
+                    // لأن existsSync تفشل في قراءة الـ Symlinks المكسورة في لينكس
+                    fs.rmSync(filePath, { force: true, recursive: true });
+                } catch (e) {
+                    // تجاهل الأخطاء إذا لم يكن الملف موجوداً أصلاً
+                }
+            });
         });
-        console.log('🔓 تم تدمير الأقفال الوهمية بنجاح.');
-    } catch (err) {}
+        console.log('🔓 تم تدمير الأقفال الوهمية والروابط المكسورة بنجاح.');
+    } catch (err) {
+        console.log('⚠️ خطأ أثناء محاولة كسر الأقفال:', err.message);
+    }
 }
 
 function clearChromiumCache() {
