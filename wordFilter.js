@@ -30,7 +30,7 @@ function normalize(text = "") {
  * مثال:
  * const BAD_WORDS = ["كلمة1", "كلمة2", "كلمة3"];
  */
-const BAD_WORDS = [];
+const BAD_WORDS = ["عرص","خول","متناك","معرص","علق"];
 
 function containsBadWord(text = "") {
   if (!BAD_WORDS.length) return false;
